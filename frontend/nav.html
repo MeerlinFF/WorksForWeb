@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统清理工具箱</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus"></script>
+  <style>
+    :root {
+      --hr-primary: #FF6B35;
+      --hr-primary-light: #FFF3ED;
+      --hr-primary-dark: #E55A2B;
+      --hr-text: #2C3E50;
+      --hr-text-secondary: #7F8C9B;
+      --green: #4CAF50;
+      --green-light: #E8F5E9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [v-cloak] { display: none; }
+
+    body {
+      font-family: "Microsoft YaHei","PingFang SC",sans-serif;
+      background: linear-gradient(160deg, #F0F2F5 0%, #E8ECF1 40%, #F5F6F8 100%);
+      color: var(--hr-text);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: ''; position: fixed;
+      top: -180px; right: -120px;
+      width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,107,53,.06) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    body::after {
+      content: ''; position: fixed;
+      bottom: -140px; left: -100px;
+      width: 420px; height: 420px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(76,175,80,.05) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      width: 100%; max-width: 860px;
+      padding: 30px;
+      position: relative; z-index: 1;
+    }
+
+    .header {
+      text-align: center; margin-bottom: 48px;
+    }
+    .logo-wrap {
+      width: 76px; height: 76px;
+      background: linear-gradient(140deg, #FF6B35 0%, #FF8A5C 50%, #E55A2B 100%);
+      border-radius: 22px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 22px;
+      box-shadow: 0 10px 30px rgba(255,107,53,.28);
+    }
+    .logo-text {
+      color: #fff; font-size: 36px; line-height: 1;
+    }
+    .header h1 {
+      font-size: 28px; font-weight: 700;
+      color: #1a1a2e; letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+    .header .subtitle {
+      font-size: 15px; color: var(--hr-text-secondary);
+    }
+
+    .feature-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 26px;
+    }
+    @media (max-width: 660px) {
+      .feature-cards { grid-template-columns: 1fr; }
+      .container { padding: 16px; }
+      .header { margin-bottom: 32px; }
+      .header h1 { font-size: 22px; }
+    }
+
+    .feature-card {
+      background: #fff;
+      border-radius: 18px;
+      border: 1px solid transparent;
+      box-shadow: 0 2px 14px rgba(0,0,0,.045);
+      padding: 38px 32px 32px;
+      cursor: pointer;
+      transition: all .35s cubic-bezier(.4,0,.2,1);
+      text-decoration: none; color: inherit;
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }
+    .feature-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 4px;
+    }
+    .card-duplicate {
+      border-color: rgba(255,107,53,.12);
+    }
+    .card-duplicate::before {
+      background: linear-gradient(90deg, var(--hr-primary), #FF9A6C);
+    }
+    .card-junk {
+      border-color: rgba(76,175,80,.12);
+    }
+    .card-junk::before {
+      background: linear-gradient(90deg, var(--green), #81C784);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 50px rgba(0,0,0,.09);
+    }
+    .card-duplicate:hover { border-color: rgba(255,107,53,.25); }
+    .card-junk:hover { border-color: rgba(76,175,80,.25); }
+
+    .card-icon {
+      width: 60px; height: 60px;
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 22px;
+      font-size: 30px; flex-shrink: 0;
+    }
+    .icon-duplicate {
+      background: linear-gradient(135deg, #FFF3ED, #FFE0D0);
+      color: var(--hr-primary);
+    }
+    .icon-junk {
+      background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+      color: var(--green);
+    }
+
+    .card-title {
+      font-size: 19px; font-weight: 700;
+      margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .card-desc {
+      font-size: 13px; color: var(--hr-text-secondary);
+      line-height: 1.75; flex: 1;
+    }
+
+    .card-action {
+      margin-top: 22px;
+    }
+
+    /* Element Plus 标签覆盖 */
+    .el-tag--primary {
+      --el-tag-bg-color: var(--hr-primary-light);
+      --el-tag-border-color: transparent;
+      --el-tag-text-color: var(--hr-primary);
+    }
+    .tag-green .el-tag {
+      --el-tag-bg-color: var(--green-light);
+      --el-tag-border-color: transparent;
+      --el-tag-text-color: var(--green);
+    }
+
+    /* Element Plus 按钮覆盖 */
+    .el-button--primary {
+      --el-button-bg-color: var(--hr-primary);
+      --el-button-border-color: var(--hr-primary);
+      --el-button-hover-bg-color: var(--hr-primary-dark);
+      --el-button-hover-border-color: var(--hr-primary-dark);
+    }
+    .btn-green {
+      --el-button-bg-color: var(--green);
+      --el-button-border-color: var(--green);
+      --el-button-hover-bg-color: #43A047;
+      --el-button-hover-border-color: #43A047;
+    }
+    .el-button.btn-green {
+      background-color: var(--green);
+      border-color: var(--green);
+    }
+
+    /* 状态栏 */
+    .status-bar {
+      margin-top: 40px;
+      text-align: center;
+    }
+    .status-tag .el-tag {
+      font-size: 12px;
+      border-radius: 20px;
+      padding: 6px 18px;
+      backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <div class="container">
+
+      <div class="header">
+        <div class="logo-wrap">
+          <svg class="logo-svg" viewBox="0 0 36 36" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="38" height="38">
+            <path d="M18 3v6M18 27v6M3 18h6M27 18h6"/>
+            <path d="M9.5 9.5l4.2 4.2M22.3 22.3l4.2 4.2M9.5 26.5l4.2-4.2M22.3 13.7l4.2-4.2"/>
+            <circle cx="18" cy="18" r="5.5"/>
+          </svg>
+        </div>
+        <h1>系统清理工具箱</h1>
+        <p class="subtitle">安全、高效的系统文件管理 — 选择一个功能开始</p>
+      </div>
+
+      <div class="feature-cards">
+        <!-- 重复文件检测 -->
+        <a href="/index.html" class="feature-card card-duplicate">
+          <div class="card-icon icon-duplicate">
+            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+              <rect x="5" y="5" width="18" height="22" rx="2"/>
+              <path d="M11 5V3a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v22a2 2 0 0 1-2 2h-2" opacity=".4"/>
+              <path d="M10 17l5 5M15 17l-5 5"/>
+            </svg>
+          </div>
+          <div class="card-title">重复文件检测</div>
+          <div class="card-desc">
+            通过 SHA-256 哈希精确比对，智能识别内容相同的重复文件，帮你快速清理冗余副本，释放磁盘空间。
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;">
+            <el-tag size="small" type="primary">精确哈希</el-tag>
+            <el-tag size="small" type="primary">批量删除</el-tag>
+            <el-tag size="small" type="primary">智能选择</el-tag>
+            <el-tag size="small" type="primary">报告导出</el-tag>
+          </div>
+          <div class="card-action">
+            <el-button type="primary" round size="default">
+              进入功能
+              <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:5px;vertical-align:-2px;"><path d="M3 8h10M10 5l3 3-3 3"/></svg>
+            </el-button>
+          </div>
+        </a>
+
+        <!-- 垃圾文件清理 -->
+        <a href="/junk.html" class="feature-card card-junk">
+          <div class="card-icon icon-junk">
+            <svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="28" height="28">
+              <path d="M5 10h26"/>
+              <path d="M14 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/>
+              <path d="M8 10l1.5 18a2 2 0 0 0 2 1.8h13a2 2 0 0 0 2-1.8L28 10"/>
+              <path d="M13 16v9M18 16v9M23 16v9"/>
+            </svg>
+          </div>
+          <div class="card-title">垃圾文件清理</div>
+          <div class="card-desc">
+            一键扫描系统临时文件、浏览器缓存、回收站等 9 类常见垃圾，安全清理释放磁盘空间。
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;" class="tag-green">
+            <el-tag size="small" type="primary">系统缓存</el-tag>
+            <el-tag size="small" type="primary">浏览器垃圾</el-tag>
+            <el-tag size="small" type="primary">回收站</el-tag>
+            <el-tag size="small" type="primary">9 大类别</el-tag>
+          </div>
+          <div class="card-action">
+            <el-button round size="default" class="btn-green" style="color:#fff;">
+              进入功能
+              <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:5px;vertical-align:-2px;"><path d="M3 8h10M10 5l3 3-3 3"/></svg>
+            </el-button>
+          </div>
+        </a>
+      </div>
+
+      <div class="status-bar">
+        <span class="status-tag">
+          <el-tag :type="statusType" effect="plain" round size="default">
+            <span :class="['status-dot', statusDotClass]" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;"></span>
+            {{ statusText }}
+          </el-tag>
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+    const { ElMessage } = ElementPlus;
+
+    const app = createApp({
+      setup() {
+        const backendConnected = ref(false);
+        const checking = ref(true);
+
+        const statusType = computed(() => {
+          if (checking.value) return 'warning';
+          return backendConnected.value ? 'success' : 'danger';
+        });
+
+        const statusDotClass = computed(() => {
+          if (checking.value) return 'checking';
+          return backendConnected.value ? 'online' : 'offline';
+        });
+
+        const statusText = computed(() => {
+          if (checking.value) return '正在检测服务状态...';
+          if (backendConnected.value) return '后端服务已连接 — 可以正常使用';
+          return '后端服务未连接 — 请先运行 run.py 启动服务';
+        });
+
+        let timer = null;
+
+        async function checkBackend() {
+          try {
+            const r = await fetch('/api/health');
+            backendConnected.value = r.ok;
+          } catch (_) {
+            backendConnected.value = false;
+          }
+          checking.value = false;
+        }
+
+        onMounted(async () => {
+          await checkBackend();
+          timer = setInterval(async () => {
+            await checkBackend();
+          }, 10000);
+        });
+
+        onUnmounted(() => {
+          if (timer) clearInterval(timer);
+        });
+
+        return {
+          backendConnected, checking,
+          statusType, statusDotClass, statusText,
+        };
+      },
+    });
+
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+
+  <style>
+    .status-dot { display: inline-block; }
+    .status-dot.online { background: #52C41A; box-shadow: 0 0 6px rgba(82,196,26,.4); }
+    .status-dot.offline { background: #FF4D4F; }
+    .status-dot.checking { background: #FAAD14; animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.3); }
+    }
+  </style>
+</body>
+</html>

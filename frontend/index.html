@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>重复文件检测器</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus"></script>
+  <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+  <style>
+    :root {
+      --hr-primary: #FF6B35;
+      --hr-primary-light: #FFF3ED;
+      --hr-primary-dark: #E55A2B;
+      --hr-bg: #F5F6F8;
+      --hr-sidebar-bg: #FFFFFF;
+      --hr-text: #2C3E50;
+      --hr-text-secondary: #7F8C9B;
+      --hr-border: #E8ECF1;
+      --hr-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Microsoft YaHei","PingFang SC",sans-serif; background: var(--hr-bg); color: var(--hr-text); }
+    [v-cloak] { display: none; }
+
+    .app-layout { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ---- 侧边栏 ---- */
+    .sidebar {
+      width: 300px; min-width: 260px; background: var(--hr-sidebar-bg);
+      border-right: 1px solid var(--hr-border); display: flex; flex-direction: column;
+      box-shadow: var(--hr-shadow); z-index: 10;
+    }
+    .sidebar-header {
+      padding: 18px 18px 12px; border-bottom: 1px solid var(--hr-border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sidebar-header .logo { width: 36px; height: 36px; background: var(--hr-primary); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: bold; }
+    .sidebar-header h3 { margin: 0; font-size: 15px; font-weight: 600; }
+    .sidebar-body { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .sidebar-footer { padding: 10px 16px; border-top: 1px solid var(--hr-border); font-size: 12px; color: var(--hr-text-secondary); }
+
+    /* 树形组件定制 */
+    .sidebar .el-tree {
+      background: transparent; --el-tree-node-hover-bg-color: var(--hr-primary-light);
+    }
+    .sidebar .el-tree-node__content { height: 34px; border-radius: 6px; margin: 1px 8px; padding-right: 8px; }
+    .sidebar .el-tree-node.is-current > .el-tree-node__content {
+      background: var(--hr-primary-light); color: var(--hr-primary); font-weight: 600;
+    }
+    .sidebar .el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content {
+      background-color: var(--hr-primary-light);
+    }
+
+    /* ---- 主内容区 ---- */
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .main-header {
+      padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--hr-border);
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: var(--hr-shadow);
+    }
+    .main-header .current-path { font-size: 14px; color: var(--hr-text-secondary); max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .main-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+    /* 状态指示器 */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-dot.online { background: #52C41A; }
+    .status-dot.offline { background: #FF4D4F; }
+
+    /* 统计卡片 */
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .stat-card {
+      background: #fff; border-radius: 10px; padding: 18px 20px;
+      border: 1px solid var(--hr-border); box-shadow: var(--hr-shadow);
+    }
+    .stat-card .value { font-size: 28px; font-weight: 700; color: var(--hr-primary); }
+    .stat-card .label { font-size: 13px; color: var(--hr-text-secondary); margin-top: 4px; }
+
+    /* 重复组列表 */
+    .group-list { display: flex; flex-direction: column; gap: 10px; }
+    .group-item { background: #fff; border-radius: 10px; border: 1px solid var(--hr-border);
+      box-shadow: var(--hr-shadow); overflow: hidden; }
+    .group-item .group-header {
+      padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+      cursor: pointer; transition: background .15s;
+    }
+    .group-item .group-header:hover { background: #FAFBFC; }
+    .group-item .group-index { width: 32px; height: 32px; border-radius: 8px;
+      background: var(--hr-primary-light); color: var(--hr-primary);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    .group-item .group-body { padding: 0 18px 14px; border-top: 1px solid var(--hr-border); }
+    .file-path { font-family: "Consolas","Courier New",monospace; font-size: 12px; padding: 6px 10px;
+      background: #F8F9FB; border-radius: 5px; margin: 3px 0; word-break: break-all; color: #5A6473; }
+
+    /* Element Plus 按钮覆盖 */
+    .el-button--primary { --el-button-bg-color: var(--hr-primary); --el-button-border-color: var(--hr-primary);
+      --el-button-hover-bg-color: var(--hr-primary-dark); --el-button-hover-border-color: var(--hr-primary-dark); }
+    .el-progress-bar__outer { background-color: #FFE8DB; }
+    .el-progress-bar__inner { background-color: var(--hr-primary); }
+    .el-tag--primary { --el-tag-bg-color: var(--hr-primary-light); --el-tag-border-color: transparent; --el-tag-text-color: var(--hr-primary); }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .app-layout { flex-direction: column; }
+      .sidebar { width: 100%; min-width: unset; max-height: 40vh; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+    <div class="app-layout">
+
+      <!-- ==================== 侧边栏：目录树 ==================== -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">D</div>
+          <h3>目录浏览</h3>
+        </div>
+        <div class="sidebar-body">
+          <el-tree
+            ref="treeRef"
+            :data="treeData"
+            :props="treeProps"
+            node-key="path"
+            show-checkbox
+            highlight-current
+            :load="loadTreeNode"
+            lazy
+            @check="onTreeCheck"
+          >
+            <template #default="{ node, data }">
+              <span style="display:flex;align-items:center;gap:6px;">
+                <el-icon :size="16" color="#FF6B35"><folder-opened /></el-icon>
+                <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ data.label }}</span>
+              </span>
+            </template>
+          </el-tree>
+        </div>
+        <!-- 已选目录 -->
+        <div v-if="checkedDirs.length > 0" style="padding:8px 16px;border-top:1px solid var(--hr-border);max-height:120px;overflow-y:auto;">
+          <div style="font-size:11px;color:var(--hr-text-secondary);margin-bottom:4px;">已选 {{ checkedDirs.length }} 个目录</div>
+          <div v-for="d in checkedDirs.slice(0,5)" :key="d" style="font-size:11px;color:var(--hr-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📁 {{ d }}</div>
+          <div v-if="checkedDirs.length > 5" style="font-size:11px;color:var(--hr-text-secondary);">... 还有 {{ checkedDirs.length - 5 }} 个</div>
+        </div>
+        <div class="sidebar-footer">
+          <span :class="['status-dot', backendConnected ? 'online' : 'offline']"></span>
+          {{ backendConnected ? '服务已连接' : '服务未连接' }}
+        </div>
+      </aside>
+
+      <!-- ==================== 主内容区 ==================== -->
+      <main class="main-content">
+        <div class="main-header">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <a href="/" style="font-size:12px;color:var(--hr-text-secondary);text-decoration:none;display:flex;align-items:center;gap:4px;transition:color .2s;"
+              onmouseover="this.style.color='var(--hr-primary)'" onmouseout="this.style.color='var(--hr-text-secondary)'">
+              <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 3L5 7l4 4"/></svg>
+              返回导航
+            </a>
+            <span style="font-weight:600;font-size:15px;">扫描任务</span>
+            <span v-if="checkedDirs.length > 0" style="margin-left:4px;font-size:12px;color:var(--hr-primary);">
+              📁 已选 {{ checkedDirs.length }} 个目录
+            </span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <el-button size="small" @click="showSettings = true" :icon="Setting">
+              高级设置
+            </el-button>
+            <el-button type="primary" :loading="scanning" :disabled="checkedDirs.length === 0 || !backendConnected"
+              :icon="Search" @click="startScan" size="default">
+              {{ scanning ? '扫描中...' : '开始扫描' }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 高级设置弹出框 -->
+        <el-dialog v-model="showSettings" title="⚙ 高级设置" width="500px" :close-on-click-modal="false">
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--hr-text);">跳过以下目录（扫描时将忽略这些目录）</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-height:32px;">
+            <el-tag v-for="(d,i) in skipDirs" :key="i" closable @close="skipDirs.splice(i,1)" size="small" type="info">{{ d }}</el-tag>
+            <span v-if="skipDirs.length === 0" style="font-size:12px;color:var(--hr-text-secondary);">暂未设置跳过目录</span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <el-input v-model="newSkipDir" size="small" placeholder="输入要跳过的目录名" style="flex:1;" @keyup.enter="addSkipDir" />
+            <el-button size="small" type="primary" @click="addSkipDir">添加</el-button>
+            <el-button size="small" @click="skipDirs = DEFAULT_SKIP_DIRS.slice()">恢复默认</el-button>
+          </div>
+          <template #footer>
+            <el-button @click="showSettings = false">关闭</el-button>
+          </template>
+        </el-dialog>
+
+        <div class="main-body">
+          <!-- 进度 -->
+          <div v-if="progressVisible" style="margin-bottom:20px; background: #fff; padding: 18px 24px; border-radius: 12px; border: 1px solid var(--hr-border); box-shadow: var(--hr-shadow);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+              <span style="font-weight:600; font-size:14px; color:var(--hr-text);">{{ progressTitle }}</span>
+              <span style="font-size:13px; color:var(--hr-text-secondary); font-family:Consolas,monospace;">
+                {{ progressText }}
+              </span>
+            </div>
+            <el-progress 
+              :percentage="progressPercent"
+              :status="errorMsg ? 'exception' : (progressPercent === 100 ? 'success' : '')"
+              :stroke-width="12" 
+              :show-text="false"
+            />
+          </div>
+
+          <!-- 无结果占位 -->
+          <div v-if="!resultData && !scanning" style="text-align:center;padding:60px 20px;color:var(--hr-text-secondary);">
+            <el-icon :size="48" color="#DCDFE6"><FolderOpened /></el-icon>
+            <p style="margin-top:14px;font-size:15px;">从左侧选择目录，点击「开始扫描」</p>
+          </div>
+
+          <!-- 结果为空 -->
+          <el-result v-if="resultData && resultData.duplicate_groups.length === 0"
+            icon="success" title="未发现重复文件" sub-title="该目录非常整洁">
+          </el-result>
+
+          <!-- 统计卡片 -->
+          <div v-if="resultData && resultData.duplicate_groups.length > 0" class="stat-cards">
+            <div class="stat-card">
+              <div class="value">{{ resultData.duplicate_groups.length }}</div>
+              <div class="label">重复组</div>
+            </div>
+            <div class="stat-card">
+              <div class="value">{{ resultData.duplicate_file_count }}</div>
+              <div class="label">重复文件</div>
+            </div>
+            <div class="stat-card">
+              <div class="value">{{ resultData.wasted_display }}</div>
+              <div class="label">可释放空间</div>
+            </div>
+            <div class="stat-card">
+              <div class="value">{{ resultData.total_files }}</div>
+              <div class="label">扫描总文件</div>
+            </div>
+          </div>
+
+          <!-- 操作工具栏 -->
+          <div v-if="resultData && resultData.duplicate_groups.length > 0" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding:10px 14px; background:#fff; border-radius:10px; border:1px solid var(--hr-border); box-shadow:var(--hr-shadow); flex-wrap:wrap;">
+
+            <!-- 左侧：选择操作 -->
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap;">
+              <span style="font-size:12px; color:var(--hr-text-secondary); margin-right:4px;">选择</span>
+              <el-button size="small" @click="smartSelect('first')" :icon="Select">智能保留首个</el-button>
+              <el-button size="small" @click="smartSelect('shortest')" :icon="Link">保留最短路径</el-button>
+              <el-button size="small" @click="smartSelect('none')" :icon="Close">取消全选</el-button>
+              <span style="width:1px;height:18px;background:var(--hr-border);margin:0 6px;"></span>
+              <el-button size="small" type="danger" :disabled="selectedCount === 0" @click="deleteSelected" :icon="Delete">
+                删除选中{{ selectedCount > 0 ? ' (' + selectedCount + ')' : '' }}
+              </el-button>
+            </div>
+
+            <!-- 占位弹簧 → 右侧按钮靠右 -->
+            <div style="flex:1;"></div>
+
+            <!-- 右侧：结果操作 -->
+            <div style="display:flex; gap:6px;">
+              <el-button size="small" @click="clearResults" :icon="RefreshLeft">清空结果</el-button>
+              <el-button size="small" type="primary" tag="a"
+                :href="'/api/scan/' + taskId + '/report'" download="duplicates_report.txt" :icon="Download">
+                下载报告
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 重复组列表 -->
+          <div v-if="resultData && resultData.duplicate_groups.length > 0" class="group-list">
+            <div v-for="(group, idx) in resultData.duplicate_groups" :key="idx" class="group-item">
+              <div class="group-header" @click="toggleGroup(idx)">
+                <div class="group-index">{{ idx + 1 }}</div>
+                <div style="flex:1;">
+                  <span style="font-weight:600;font-size:14px;">重复组 #{{ idx + 1 }}</span>
+                  <span style="margin-left:8px;font-size:12px;color:var(--hr-text-secondary);">
+                    {{ group.files.length }} 个文件 · {{ group.size_display }}
+                  </span>
+                </div>
+                <el-tag size="small" type="warning" effect="plain">
+                  浪费 {{ calcWasted(group.size_bytes, group.files.length) }}
+                </el-tag>
+                <el-icon :size="18" style="margin-left:6px;transition:transform .2s;"
+                  :style="{ transform: expandedGroups[idx] ? 'rotate(180deg)' : '' }">
+                  <ArrowDown />
+                </el-icon>
+              </div>
+              <div v-show="expandedGroups[idx]" class="group-body">
+                <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                  <el-button size="small" text type="primary" @click.stop="copyFiles(group.files)">
+                    复制全部路径
+                  </el-button>
+                </div>
+                <div v-for="(f, fi) in group.files" :key="fi" class="file-path" style="display:flex;align-items:center;gap:8px;">
+                  <el-checkbox v-model="checkedPaths[f]" @click.stop></el-checkbox>
+                  <span style="color:#C0C4CC;margin-right:2px;font-size:12px;">{{ fi + 1 }}.</span>
+                  <span style="flex:1;word-break:break-all;color:#5A6473;font-size:13px;">{{ f }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, onUnmounted, nextTick } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+
+    const app = createApp({
+      setup() {
+        const backendConnected = ref(false);
+        const scanDir = ref("");
+        const checkedDirs = reactive([]);
+        const scanning = ref(false);
+        const showSettings = ref(false);
+        const DEFAULT_SKIP_DIRS = [".git", "__pycache__", "node_modules", "venv", ".conda"];
+        const skipDirs = reactive(DEFAULT_SKIP_DIRS.slice());
+        const newSkipDir = ref("");
+        const progressVisible = ref(false);
+        const progressTitle = ref("准备就绪");
+        const progressText = ref("等待启动");
+        const progressPercent = ref(0);
+        const progressTotal = ref(0);
+        const errorMsg = ref("");
+        const taskId = ref("");
+        const resultData = ref(null);
+        const expandedGroups = reactive({});
+        const checkedPaths = reactive({});
+        const selectedCount = computed(() => Object.values(checkedPaths).filter(v => v).length);
+        const treeRef = ref(null);
+
+        let eventSource = null;
+
+        // 图标
+        const Search       = ElementPlusIconsVue.Search;
+        const Setting      = ElementPlusIconsVue.Setting;
+        const FolderOpened = ElementPlusIconsVue.FolderOpened;
+        const Delete       = ElementPlusIconsVue.Delete;
+        const Download     = ElementPlusIconsVue.Download;
+        const ArrowDown    = ElementPlusIconsVue.ArrowDown;
+        const Select       = ElementPlusIconsVue.Select;
+        const Link         = ElementPlusIconsVue.Link;
+        const Close        = ElementPlusIconsVue.Close;
+        const RefreshLeft  = ElementPlusIconsVue.RefreshLeft;
+
+        // ---- 目录树 ----
+        const treeData = ref([]);
+        const treeProps = { label: "label", children: "children", isLeaf: () => false };
+
+        // 根节点加载（onMounted 中调用）
+        const initRootNodes = async () => {
+          try {
+            const r = await fetch("/api/browse", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path: "" }),
+            });
+            treeData.value = (await r.json()).nodes;
+          } catch (_) {}
+        };
+
+        const loadTreeNode = async (node, resolve) => {
+          const path = node.data ? node.data.path : "";
+          try {
+            const r = await fetch("/api/browse", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ path }),
+            });
+            resolve((await r.json()).nodes);
+          } catch (e) {
+            resolve([]);
+          }
+        };
+
+        const onTreeCheck = (data, checkState) => {
+          // 收集所有勾选节点，过滤掉父目录已勾选下的子目录（避免重复扫描）
+          let keys = treeRef.value.getCheckedKeys();
+          // 只保留顶层目录：若某个路径的父路径也在选中列表中，则剔除
+          keys = keys.filter(k => {
+            const sep = k.endsWith('\\') ? k.slice(0, -1) : k;
+            return !keys.some(other => other !== k && sep.startsWith(other.endsWith('\\') ? other.slice(0, -1) : other) && sep.length > (other.endsWith('\\') ? other.slice(0, -1) : other).length);
+          });
+          checkedDirs.splice(0, checkedDirs.length, ...keys);
+        };
+
+        const addSkipDir = () => {
+          const v = newSkipDir.value.trim();
+          if (v && !skipDirs.includes(v)) { skipDirs.push(v); newSkipDir.value = ""; }
+        };
+
+        // ---- 后端状态 ----
+        const checkBackend = async () => {
+          try { backendConnected.value = (await fetch("/api/health")).ok; }
+          catch (_) { backendConnected.value = false; }
+        };
+
+        const fetchDefaultDir = async () => {
+          try {
+            const r = await fetch("/api/default_dir");
+            if (r.ok) {
+              const d = (await r.json()).dir;
+              scanDir.value = d;
+              // 展开树到默认目录
+              await nextTick();
+              expandTreeTo(d);
+            }
+          } catch (_) {}
+        };
+
+        const expandTreeTo = async (targetPath) => {
+          await nextTick();
+          if (!treeRef.value) return;
+          const parts = targetPath.split("\\").filter(Boolean);
+          let current = "";
+          for (const part of parts) {
+            const prev = current;
+            current = current ? current + "\\" + part : part + ":\\";
+            try {
+              const node = treeRef.value.getNode(current);
+              if (node) {
+                await node.expand();
+                await new Promise(r => setTimeout(r, 300));
+              }
+            } catch (_) {}
+          }
+          await nextTick();
+          treeRef.value.setCurrentKey(targetPath);
+        };
+
+        onMounted(async () => {
+          await initRootNodes();
+          checkBackend();
+          await fetchDefaultDir();
+          setInterval(checkBackend, 5000);
+        });
+        onUnmounted(() => { if (eventSource) eventSource.close(); });
+
+        // ---- 工具 ----
+        const calcWasted = (b, n) => {
+          let w = b * (n - 1); const u = ["B","KB","MB","GB","TB"]; let i = 0;
+          while (w >= 1024 && i < u.length - 1) { w /= 1024; i++; }
+          return `${w.toFixed(1)} ${u[i]}`;
+        };
+        const toggleGroup = (i) => { expandedGroups[i] = !expandedGroups[i]; };
+        const copyFiles = (files) => {
+          navigator.clipboard.writeText(files.join("\n"))
+            .then(() => ElMessage.success("已复制"))
+            .catch(() => ElMessage.error("复制失败"));
+        };
+
+        const smartSelect = (mode) => {
+          if (!resultData.value) return;
+          resultData.value.duplicate_groups.forEach(g => {
+            if (mode === 'none') {
+              g.files.forEach(f => checkedPaths[f] = false);
+            } else if (mode === 'first') {
+              // 保留第一个，其余全选
+              g.files.forEach((f, idx) => checkedPaths[f] = (idx !== 0));
+            } else if (mode === 'shortest') {
+              // 保留路径最短的，其余全选
+              let shortestIdx = 0;
+              for (let i = 1; i < g.files.length; i++) {
+                if (g.files[i].length < g.files[shortestIdx].length) shortestIdx = i;
+              }
+              g.files.forEach((f, idx) => checkedPaths[f] = (idx !== shortestIdx));
+            }
+          });
+        };
+
+        const deleteSelected = async () => {
+          const filesToDelete = Object.keys(checkedPaths).filter(k => checkedPaths[k]);
+          if (filesToDelete.length === 0) return;
+
+          try {
+            await ElMessageBox.confirm(
+              `确定要永久删除这 ${filesToDelete.length} 个文件吗？\n删除后将无法通过回收站恢复！`,
+              '危险操作',
+              { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+            );
+          } catch { return; }
+
+          try {
+            const r = await fetch('/api/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ files: filesToDelete })
+            });
+            if (!r.ok) throw new Error("删除请求失败");
+            const res = await r.json();
+
+            if (res.errors.length > 0) {
+              ElMessage.warning(`删除了 ${res.deleted.length} 个文件，但有 ${res.errors.length} 个失败。`);
+            } else {
+              ElMessage.success(`成功彻底删除了 ${res.deleted.length} 个重复文件！`);
+            }
+
+            // 更新 UI 列表：移除已删文件
+            const deletedSet = new Set(res.deleted);
+            resultData.value.duplicate_groups = resultData.value.duplicate_groups.map(g => {
+              g.files = g.files.filter(f => !deletedSet.has(f));
+              return g;
+            }).filter(g => g.files.length >= 2); // 少于2个文件的组不再是重复组
+
+            res.deleted.forEach(f => delete checkedPaths[f]);
+
+          } catch (e) {
+            ElMessage.error(e.message);
+          }
+        };
+
+        const clearResults = () => {
+          resultData.value = null; progressVisible.value = false; errorMsg.value = "";
+          Object.keys(expandedGroups).forEach(k => delete expandedGroups[k]);
+          Object.keys(checkedPaths).forEach(k => delete checkedPaths[k]);
+        };
+
+        // ---- 扫描 ----
+        const startScan = async () => {
+          if (scanning.value || !backendConnected.value || checkedDirs.length === 0) return;
+          clearResults();
+          scanning.value = true; progressVisible.value = true;
+          progressTitle.value = "准备扫描"; progressText.value = "正在连接..."; progressPercent.value = 0;
+          try {
+            const r = await fetch("/api/scan", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ directories: [...checkedDirs], skip_dirs: [...skipDirs] }),
+            });
+            if (!r.ok) {
+              const err = await r.json();
+              const msg = Array.isArray(err.detail)
+                ? err.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join('; ')
+                : (err.detail || '请求失败');
+              throw new Error(msg);
+            }
+            taskId.value = (await r.json()).task_id;
+            streamProgress();
+          } catch (e) { handleError(e.message); }
+        };
+
+        const streamProgress = () => {
+          if (eventSource) eventSource.close();
+          eventSource = new EventSource(`/api/scan/${taskId.value}/stream`);
+          eventSource.onmessage = (e) => {
+            const d = JSON.parse(e.data);
+            if (d.progress_total > 0) progressPercent.value = Math.floor(d.progress_current / d.progress_total * 100);
+            
+            if (d.progress_phase === "collect") {
+              progressTitle.value = "检索目录结构";
+              progressText.value = `已发现 ${d.progress_current} 个潜在文件`;
+            } else if (d.progress_phase === "hash") {
+              progressTitle.value = "对比文件哈希";
+              progressText.value = `进度：${d.progress_current} / ${d.progress_total}`;
+            }
+
+            if (d.status === "done") { eventSource.close(); loadResults(); }
+            else if (d.status === "error") { eventSource.close(); handleError(d.error || "错误"); }
+          };
+          eventSource.onerror = () => { eventSource.close(); handleError("SSE 断连"); };
+        };
+
+        const loadResults = async () => {
+          progressPercent.value = 100; 
+          progressTitle.value = "扫描完成";
+          progressText.value = "正在渲染结果...";
+          try {
+            const r = await fetch(`/api/scan/${taskId.value}/result`);
+            const data = await r.json();
+            
+            // 在赋值前排序和初始化，避免后续 mutate 不一致
+            data.duplicate_groups.sort((a, b) => b.size_bytes - a.size_bytes);
+            data.duplicate_groups.forEach(g => {
+              g.files.forEach(f => checkedPaths[f] = false);
+            });
+
+            // 赋值触发 Vue 响应式
+            resultData.value = data;
+            scanning.value = false;
+            
+            // 等待 Vue 完成 DOM 渲染，再隐藏进度条
+            await nextTick();
+            progressVisible.value = false;
+
+            const n = data.duplicate_groups.length;
+            if (n > 0) {
+              ElMessage.success(`发现 ${n} 组重复文件`);
+            } else {
+              ElMessage.info("未发现重复文件");
+            }
+          } catch (e) { handleError(e.message); }
+        };
+
+        const handleError = (msg) => {
+          scanning.value = false; errorMsg.value = msg;
+          progressTitle.value = "扫描中止";
+          progressText.value = `错误: ${msg}`; ElMessage.error(msg);
+        };
+
+        return {
+          backendConnected, scanDir, checkedDirs, scanning, showSettings, skipDirs, DEFAULT_SKIP_DIRS, newSkipDir,
+          progressVisible, progressTitle, progressText,
+          progressPercent, progressTotal, errorMsg, taskId, resultData, expandedGroups,
+          checkedPaths, selectedCount,
+          treeRef, treeData, treeProps, loadTreeNode, onTreeCheck, addSkipDir,
+          Search, Setting, FolderOpened, Delete, Download, ArrowDown,
+          Select, Link, Close, RefreshLeft,
+          startScan, clearResults, toggleGroup, copyFiles, calcWasted,
+          smartSelect, deleteSelected
+        };
+      },
+    });
+
+    for (const [k, c] of Object.entries(ElementPlusIconsVue)) app.component(k, c);
+    app.use(ElementPlus);
+    app.mount("#app");
+  </script>
+</body>
+</html>

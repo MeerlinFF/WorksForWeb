@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>垃圾文件清理</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus"></script>
+  <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+  <style>
+    :root {
+      --hr-primary: #FF6B35;
+      --hr-primary-light: #FFF3ED;
+      --hr-primary-dark: #E55A2B;
+      --hr-bg: #FFFFFF;
+      --hr-text: #2C3E50;
+      --hr-text-secondary: #8B95A5;
+      --hr-border: #EEF0F4;
+      --green: #4CAF50;
+      --green-light: #E8F5E9;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [v-cloak] { display: none; }
+
+    body {
+      font-family: "Microsoft YaHei","PingFang SC",sans-serif;
+      background: #F8F9FB;
+      color: var(--hr-text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ======== 顶部标题栏 ======== */
+    .top-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--hr-border);
+      padding: 14px 32px;
+      display: flex; align-items: center; gap: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .top-bar .top-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, #FF6B35, #FF8A5C);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .top-bar .top-title {
+      flex: 1;
+      font-size: 16px; font-weight: 600;
+      color: #1a1a2e;
+    }
+    .top-bar .top-subtitle {
+      font-size: 12px; color: var(--hr-text-secondary);
+      font-weight: 400; margin-top: 2px;
+    }
+    .top-bar .top-status {
+      font-size: 12px; color: var(--hr-text-secondary);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .top-bar .top-status .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+    .top-bar .top-status .dot.online { background: #52C41A; }
+    .top-bar .top-status .dot.offline { background: #FF4D4F; }
+    .nav-back {
+      font-size: 12px; color: var(--hr-text-secondary); text-decoration: none;
+      display: flex; align-items: center; gap: 4px;
+      transition: color .2s;
+    }
+    .nav-back:hover { color: var(--hr-primary); }
+
+    /* ======== 主布局：左右两栏 ======== */
+    .main-layout {
+      display: flex;
+      height: calc(100vh - 78px);
+      padding: 20px 24px;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .main-layout { flex-direction: column; height: auto; padding: 12px; gap: 12px; }
+    }
+
+    /* ======== 左栏：清理类别 ======== */
+    .left-panel {
+      width: 380px; min-width: 340px; flex-shrink: 0;
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid var(--hr-border);
+      box-shadow: var(--shadow-sm);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    @media (max-width: 900px) {
+      .left-panel { width: 100%; min-width: unset; }
+    }
+    .left-panel .panel-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--hr-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .left-panel .panel-header .panel-title {
+      font-size: 14px; font-weight: 600;
+    }
+    .left-panel .panel-body {
+      flex: 1; overflow-y: auto; padding: 10px 12px;
+    }
+
+    /* 类别卡片 */
+    .cat-card {
+      display: block;
+      background: #fff;
+      border: 1px solid var(--hr-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .cat-card:hover {
+      border-color: #D0D5DD;
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .cat-card.checked {
+      border-color: rgba(255,107,53,.25);
+    }
+    .cat-card .card-row1 {
+      display: flex; align-items: center;
+    }
+    .cat-card .card-row1 .el-checkbox {
+      flex-shrink: 0; margin-right: 10px;
+    }
+    .cat-card .card-icon {
+      width: 28px; height: 28px;
+      flex-shrink: 0; margin-right: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cat-card .card-icon svg {
+      width: 22px; height: 22px;
+    }
+    .cat-card .card-name {
+      flex: 1; min-width: 0;
+      font-size: 13px; font-weight: 650;
+      color: #1a1a2e;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .cat-card .card-size {
+      flex-shrink: 0; margin-left: 12px;
+      font-size: 12px; font-weight: 700; color: var(--hr-primary);
+      white-space: nowrap;
+      background: #FFF9F6;
+      padding: 3px 10px; border-radius: 12px;
+    }
+    .cat-card .card-row2 {
+      margin-top: 6px;
+      padding-left: 48px;  /* 对齐文字与 card-name */
+      font-size: 11px; color: var(--hr-text-secondary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* 复选框覆盖 */
+    .el-checkbox__input.is-checked .el-checkbox__inner {
+      background-color: var(--hr-primary); border-color: var(--hr-primary);
+    }
+    .el-checkbox__input.is-indeterminate .el-checkbox__inner {
+      background-color: var(--hr-primary); border-color: var(--hr-primary);
+    }
+
+    /* ======== 右栏：内容区 ======== */
+    .right-panel {
+      flex: 1;
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid var(--hr-border);
+      box-shadow: var(--shadow-sm);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 空闲插图 */
+    .idle-view {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 40px;
+      text-align: center;
+    }
+    .idle-view .idle-illustration {
+      width: 200px; height: 160px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .idle-view .idle-title {
+      font-size: 15px; color: var(--hr-text-secondary);
+      margin-bottom: 8px;
+    }
+    .idle-view .idle-hint {
+      font-size: 12px; color: #C0C4CC;
+    }
+
+    /* 扫描中视图 */
+    .scanning-view {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 40px;
+      text-align: center;
+    }
+    .scanning-view .scan-anim-icon {
+      width: 80px; height: 80px;
+      margin-bottom: 32px;
+      animation: float 2s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .scanning-view .scan-title {
+      font-size: 17px; font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .scanning-view .scan-progress-wrap {
+      width: 100%; max-width: 420px;
+    }
+    .scanning-view .scan-detail {
+      font-size: 13px; color: var(--hr-text-secondary);
+      margin-top: 14px;
+    }
+
+    /* 结果视图 */
+    .result-view {
+      flex: 1; overflow-y: auto; padding: 24px 28px;
+    }
+    .result-summary {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 24px;
+      background: linear-gradient(135deg, #FFF9F6, #fff);
+      border-radius: 12px;
+      border: 1px solid rgba(255,107,53,.15);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .result-summary .summary-icon { font-size: 36px; flex-shrink: 0; }
+    .result-summary .summary-info { flex: 1; min-width: 180px; }
+    .result-summary .summary-total {
+      font-size: 15px; font-weight: 700; color: #1a1a2e; line-height: 1.5;
+    }
+    .result-summary .summary-sub {
+      font-size: 12px; color: var(--hr-text-secondary); margin-top: 3px;
+    }
+    .result-summary .summary-action {
+      flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+    }
+
+    /* 结果分类卡片 */
+    .result-cat {
+      background: #fff;
+      border: 1px solid var(--hr-border);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .rc-header {
+      display: block;
+      padding: 16px 20px;
+      cursor: pointer;
+      transition: background .12s;
+      user-select: none;
+    }
+    .rc-header:hover { background: #F9FAFB; }
+    .rc-header .rc-row1 {
+      display: flex; align-items: center;
+    }
+    .rc-header .rc-check {
+      flex-shrink: 0; margin-right: 10px;
+    }
+    .rc-header .rc-icon {
+      width: 28px; height: 28px;
+      flex-shrink: 0; margin-right: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rc-header .rc-icon svg {
+      width: 22px; height: 22px;
+    }
+    .rc-header .rc-name {
+      flex: 1; min-width: 0;
+      font-size: 14px; font-weight: 650;
+      color: #1a1a2e;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .rc-header .rc-size {
+      flex-shrink: 0; margin-left: 12px;
+      font-size: 14px; font-weight: 700; color: var(--hr-primary);
+      white-space: nowrap;
+    }
+    .rc-header .rc-arrow {
+      flex-shrink: 0; margin-left: 8px;
+      transition: transform .2s;
+      color: var(--hr-text-secondary);
+    }
+    .rc-header .rc-arrow.open { transform: rotate(180deg); }
+    .rc-header .rc-row2 {
+      margin-top: 4px;
+      padding-left: 48px;
+      font-size: 12px; color: var(--hr-text-secondary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .rc-header .rc-size {
+      font-size: 14px; font-weight: 700; color: var(--hr-primary);
+      flex-shrink: 0; white-space: nowrap;
+    }
+    .rc-header .rc-arrow {
+      flex-shrink: 0; transition: transform .2s;
+      color: var(--hr-text-secondary);
+    }
+    .rc-header .rc-arrow.open { transform: rotate(180deg); }
+
+    /* 结果展开区：文件树 */
+    .rc-body {
+      border-top: 1px solid var(--hr-border);
+      background: #FAFBFC;
+    }
+    .file-tree {
+      font-family: "Segoe UI","Microsoft YaHei",sans-serif;
+      font-size: 13px;
+      padding: 6px 0;
+    }
+    /* 目录节点 */
+    .tree-dir {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 16px 9px 24px;
+      cursor: pointer;
+      color: #3C4450;
+      transition: background .1s;
+      user-select: none;
+      min-width: 0;
+    }
+    .tree-dir:hover { background: #EFF1F4; }
+    .tree-dir .dir-arrow {
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: transform .15s;
+    }
+    .tree-dir .dir-arrow svg { color: #8B95A5; }
+    .tree-dir .dir-arrow.open { transform: rotate(90deg); }
+    .tree-dir .dir-icon { flex-shrink: 0; color: #F0A020; width: 16px; }
+    .tree-dir .dir-name {
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 13px;
+    }
+    .tree-dir .dir-count {
+      color: var(--hr-text-secondary); font-size: 12px; flex-shrink: 0; white-space: nowrap;
+    }
+    /* 文件节点 */
+    .tree-file {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 16px 7px 52px;
+      color: #4A5565;
+      transition: background .1s;
+      cursor: pointer;
+      min-width: 0;
+    }
+    .tree-file:hover { background: #EEF0F4; }
+    .tree-file .el-checkbox { flex-shrink: 0; }
+    .tree-file .file-icon { flex-shrink: 0; color: #909399; width: 14px; }
+    .tree-file .file-name {
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 13px;
+    }
+    .tree-file .file-size {
+      color: var(--hr-text-secondary); font-size: 12px;
+      flex-shrink: 0; white-space: nowrap; margin-left: 4px;
+    }
+
+    /* Element Plus 覆盖 */
+    .el-button--primary {
+      --el-button-bg-color: var(--hr-primary);
+      --el-button-border-color: var(--hr-primary);
+      --el-button-hover-bg-color: var(--hr-primary-dark);
+      --el-button-hover-border-color: var(--hr-primary-dark);
+    }
+    .el-progress-bar__outer { background-color: #FFE8DB; }
+    .el-progress-bar__inner { background-color: var(--hr-primary); }
+    .el-checkbox__inner { border-radius: 4px; }
+
+    .btn-scan {
+      font-size: 15px !important;
+      padding: 10px 32px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+    }
+    .btn-clean {
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+    }
+
+    /* 空状态 */
+    .empty-state {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" v-cloak>
+
+    <!-- ======== 顶部栏 ======== -->
+    <div class="top-bar">
+      <div class="top-icon">
+        <svg viewBox="0 0 28 28" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h20"/>
+          <path d="M11 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+          <path d="M6 7l1.2 14a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6L22 7"/>
+          <path d="M10 12v6M14 12v6M18 12v6"/>
+        </svg>
+      </div>
+      <div>
+        <div class="top-title">垃圾文件清理</div>
+        <div class="top-subtitle">清理各种系统垃圾，释放磁盘空间</div>
+      </div>
+      <a href="/" class="nav-back">
+        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 3L5 7l4 4"/></svg>
+        返回导航
+      </a>
+      <div class="top-status">
+        <span :class="['dot', backendConnected ? 'online' : 'offline']"></span>
+        {{ backendConnected ? '服务已连接' : '服务未连接' }}
+      </div>
+    </div>
+
+    <!-- ======== 主体双栏 ======== -->
+    <div class="main-layout">
+
+      <!-- 左栏：类别选择 -->
+      <div class="left-panel">
+        <div class="panel-header">
+          <span class="panel-title">清理内容</span>
+          <div style="display:flex;gap:8px;">
+            <el-button size="small" text @click="selectAll">全选</el-button>
+            <el-button size="small" text @click="deselectAll">取消</el-button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div
+            v-for="cat in categories" :key="cat.id"
+            class="cat-card"
+            :class="{ checked: selectedCats.has(cat.id) }"
+            @click="toggleCategory(cat.id)">
+            <div class="card-row1">
+              <el-checkbox
+                :model-value="selectedCats.has(cat.id)"
+                @click.stop @change="toggleCategory(cat.id)" />
+              <div class="card-icon" v-html="cat.icon"></div>
+              <div class="card-name">{{ cat.name }}</div>
+            </div>
+            <div class="card-row2">{{ cat.desc }}</div>
+          </div>
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid var(--hr-border);">
+          <el-button type="primary" class="btn-scan"
+            :loading="scanning"
+            :disabled="selectedCount === 0 || !backendConnected"
+            @click="startScan"
+            style="width:100%;">
+            {{ scanning ? '正在扫描...' : '开始扫描' }}
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 右栏：内容区 -->
+      <div class="right-panel">
+
+        <!-- 空闲状态 -->
+        <div v-if="!scanning && !resultData" class="idle-view">
+          <div class="idle-illustration">
+            <svg viewBox="0 0 200 160" width="200" height="160" fill="none">
+              <rect x="40" y="50" width="75" height="85" rx="8" stroke="#E8ECF1" stroke-width="2"/>
+              <rect x="48" y="60" width="40" height="6" rx="3" fill="#F0F2F5"/>
+              <rect x="48" y="72" width="55" height="5" rx="2.5" fill="#F5F6F8"/>
+              <rect x="48" y="82" width="35" height="5" rx="2.5" fill="#F5F6F8"/>
+              <circle cx="68" cy="112" r="14" stroke="#FFE8DB" stroke-width="3" fill="#FFF9F6"/>
+              <path d="M66 112l3 3 6-7" stroke="#FF6B35" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="125" y="35" width="50" height="70" rx="6" stroke="#E8ECF1" stroke-width="2" opacity=".6"/>
+              <rect x="132" y="43" width="28" height="4" rx="2" fill="#F0F2F5" opacity=".6"/>
+              <rect x="132" y="52" width="36" height="4" rx="2" fill="#F5F6F8" opacity=".6"/>
+              <rect x="90" y="100" width="35" height="45" rx="6" stroke="#E8ECF1" stroke-width="2" opacity=".45"/>
+              <circle cx="155" cy="125" r="22" stroke="#FFE8DB" stroke-width="2.5" fill="#FFF9F6" opacity=".7"/>
+            </svg>
+          </div>
+          <div class="idle-title">选择要清理的类别，点击「开始扫描」</div>
+          <div class="idle-hint">支持系统缓存、浏览器垃圾、回收站等 9 类</div>
+        </div>
+
+        <!-- 扫描中 -->
+        <div v-if="scanning" class="scanning-view">
+          <div class="scan-anim-icon">
+            <svg viewBox="0 0 80 80" width="80" height="80" fill="none">
+              <circle cx="40" cy="40" r="35" stroke="#FFE8DB" stroke-width="4"/>
+              <path d="M40 5 A 35 35 0 0 1 72 60" stroke="#FF6B35" stroke-width="4" stroke-linecap="round">
+                <animateTransform attributeName="transform" type="rotate" from="0 40 40" to="360 40 40" dur="1.2s" repeatCount="indefinite"/>
+              </path>
+            </svg>
+          </div>
+          <div class="scan-title">{{ progressTitle }}</div>
+          <div class="scan-progress-wrap">
+            <el-progress
+              :percentage="progressPercent"
+              :stroke-width="8"
+              :show-text="false" />
+          </div>
+          <div class="scan-detail">
+            {{ progressText }}
+            <span v-if="errorMsg" style="color:#FF4D4F;"> — {{ errorMsg }}</span>
+          </div>
+        </div>
+
+        <!-- 结果视图 -->
+        <div v-if="resultData" class="result-view">
+
+          <!-- 结果总览 -->
+          <div class="result-summary">
+            <span class="summary-icon">
+              <svg viewBox="0 0 36 36" width="36" height="36" fill="none">
+                <circle cx="18" cy="18" r="16" stroke="#FFE8DB" stroke-width="5"/>
+                <path d="M10 18l6 5 10-11" stroke="#FF6B35" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <div class="summary-info">
+              <div class="summary-total">
+                共发现 {{ resultData.total_files }} 个垃圾文件，可释放 {{ resultData.total_size_display }}
+              </div>
+              <div class="summary-sub">
+                {{ resultData.categories.length }} 个类别 · 已选中 {{ totalCheckedFiles }} 个文件
+              </div>
+            </div>
+            <div class="summary-action">
+              <el-button size="small" @click="smartSelect(allChecked ? 'none' : 'all')">
+                {{ allChecked ? '取消全选' : '全选' }}
+              </el-button>
+              <el-button
+                type="danger"
+                class="btn-clean"
+                size="small"
+                :disabled="totalCheckedFiles === 0"
+                @click="cleanSelected"
+                style="margin-left:8px;">
+                一键清理{{ totalCheckedFiles > 0 ? ' (' + totalCheckedFiles + ')' : '' }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 空结果 -->
+          <div v-if="resultData.total_files === 0" class="empty-state">
+            <svg viewBox="0 0 64 64" width="52" height="52" fill="none">
+              <circle cx="32" cy="32" r="30" stroke="#E8ECF1" stroke-width="3"/>
+              <path d="M24 32l6 5 10-11" stroke="#C0C4CC" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="margin-top:16px;font-size:14px;color:var(--hr-text-secondary);">系统很干净，未发现垃圾文件</div>
+          </div>
+
+          <!-- 分类结果 -->
+          <div v-for="cat in resultData.categories" :key="cat.category_id" class="result-cat">
+            <div class="rc-header" @click="toggleExpand(cat.category_id)">
+              <div class="rc-row1">
+                <span class="rc-check" @click.stop>
+                  <el-checkbox
+                    :model-value="isCategoryFullyChecked(cat)"
+                    :indeterminate="isCategoryIndeterminate(cat)"
+                    @change="toggleCategoryCheck(cat)" />
+                </span>
+                <div class="rc-icon" v-html="cat.icon"></div>
+                <div class="rc-name">{{ cat.category_name }}</div>
+                <div class="rc-size">{{ cat.size_display }}</div>
+                <svg viewBox="0 0 16 16" width="16" height="16" class="rc-arrow" :class="{ open: expandedCats[cat.category_id] }" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4l4 4-4 4"/></svg>
+              </div>
+              <div class="rc-row2">{{ cat.file_count }} 个文件</div>
+            </div>
+            <div v-show="expandedCats[cat.category_id]" class="rc-body">
+              <div class="file-tree">
+                <template v-for="dir in getCategoryTree(cat)" :key="dir.name">
+                  <!-- 目录行 -->
+                  <div class="tree-dir" @click="toggleDir(cat.category_id, dir.name)">
+                    <span class="dir-arrow" :class="{ open: dirOpen[cat.category_id + '/' + dir.name] }">
+                      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>
+                    </span>
+                    <svg viewBox="0 0 16 16" width="16" height="16" class="dir-icon" fill="currentColor"><path d="M2 3h4l1.5 2H14a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+                    <span class="dir-name" :title="dir.name">{{ dir.name }}</span>
+                    <span class="dir-count">{{ dir.files.length }} 个文件</span>
+                  </div>
+                  <!-- 文件行（目录展开后显示） -->
+                  <div v-show="dirOpen[cat.category_id + '/' + dir.name]"
+                    v-for="f in dir.files" :key="f.path"
+                    class="tree-file"
+                    @click="toggleFile(f.path)">
+                    <span @click.stop>
+                      <el-checkbox :model-value="!!checkedFiles[f.path]" @change="setFile(f.path, $event)" size="small" />
+                    </span>
+                    <svg viewBox="0 0 16 16" width="14" height="14" class="file-icon" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 3h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+                    <span class="file-name" :title="f.path">{{ f.name }}</span>
+                    <span class="file-size">{{ f.size_display }}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, onUnmounted, nextTick } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+
+    const app = createApp({
+      setup() {
+        // SVG 图标（精简线条风）
+        const categories = ref([
+          { id: "system_temp",   name: "系统临时文件",   desc: "清理系统运行产生的临时文件",           icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' },
+          { id: "recycle_bin",   name: "回收站",         desc: "清空回收站中的废弃文件",               icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M5 6l1 14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-14"/></svg>' },
+          { id: "browser_cache", name: "浏览器缓存",     desc: "清理 Chrome、Edge 等浏览器缓存",       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="10"/><path d="M2 12h20"/></svg>' },
+          { id: "windows_update",name: "Windows 更新缓存",desc: "清理 Windows Update 下载的安装包",     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>' },
+          { id: "thumb_cache",   name: "缩略图缓存",     desc: "清理资源管理器生成的缩略图数据库",       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>' },
+          { id: "log_files",     name: "日志文件",       desc: "清理系统和应用程序产生的日志文件",       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>' },
+          { id: "prefetch",      name: "预读取文件",     desc: "清理 Windows 预读取缓存(.pf)",          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>' },
+          { id: "recent_docs",   name: "最近文档记录",   desc: "清理「最近使用的文件」快捷方式列表",      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' },
+          { id: "crash_dumps",   name: "崩溃转储文件",   desc: "清理程序崩溃产生的内存转储文件",         icon: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF6B35" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 2.2a2 2 0 0 1 3.4 0l8 13.9A2 2 0 0 1 20 19H4a2 2 0 0 1-1.7-3l8-13.8Z"/><path d="M12 9v4M12 17h.01"/></svg>' },
+        ]);
+
+        const backendConnected = ref(false);
+        const scanning = ref(false);
+        const selectedCats = reactive(new Set());
+        const catSizes = reactive({});
+        const progressTitle = ref("准备就绪");
+        const progressText = ref("等待启动");
+        const progressPercent = ref(0);
+        const errorMsg = ref("");
+        const taskId = ref("");
+        const resultData = ref(null);
+        const expandedCats = reactive({});
+        const dirOpen = reactive({});
+        const checkedFiles = reactive({});
+
+        const selectedCount = computed(() => selectedCats.size);
+
+        const totalCheckedFiles = computed(() => {
+          if (!resultData.value) return 0;
+          let n = 0;
+          resultData.value.categories.forEach(cat => {
+            cat.files.forEach(f => { if (checkedFiles[f.path]) n++; });
+          });
+          return n;
+        });
+
+        const allChecked = computed(() => {
+          if (!resultData.value) return false;
+          let total = 0, checked = 0;
+          resultData.value.categories.forEach(cat => {
+            total += cat.files.length;
+            cat.files.forEach(f => { if (checkedFiles[f.path]) checked++; });
+          });
+          // 0 个文件的类别视为"已处理"；所有有文件的类别全部勾选即为全选
+          return total > 0 && checked >= total;
+        });
+
+        let eventSource = null;
+
+        const toggleCategory = (id) => {
+          if (selectedCats.has(id)) selectedCats.delete(id);
+          else selectedCats.add(id);
+        };
+        const selectAll = () => categories.value.forEach(c => selectedCats.add(c.id));
+        const deselectAll = () => selectedCats.clear();
+
+        const checkBackend = async () => {
+          try { backendConnected.value = (await fetch("/api/health")).ok; }
+          catch (_) { backendConnected.value = false; }
+        };
+
+        onMounted(() => {
+          checkBackend();
+          categories.value.forEach(c => selectedCats.add(c.id));
+          setInterval(checkBackend, 5000);
+        });
+        onUnmounted(() => { if (eventSource) eventSource.close(); });
+
+        // ---- 工具 ----
+        const safeJson = async (r) => {
+          try { return await r.json(); }
+          catch (_) { return { detail: `服务器错误 (${r.status})` }; }
+        };
+
+        // ---- 扫描 ----
+        const startScan = async () => {
+          if (scanning.value || !backendConnected.value || selectedCount.value === 0) return;
+          clearResults();
+          scanning.value = true;
+          progressTitle.value = "准备扫描"; progressText.value = "正在连接..."; progressPercent.value = 0;
+          try {
+            const r = await fetch("/api/junk/scan", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ categories: [...selectedCats] }),
+            });
+            const data = await safeJson(r);
+            if (!r.ok) throw new Error(data.detail || "请求失败");
+            taskId.value = data.task_id;
+            streamProgress();
+          } catch (e) { handleError(e.message); }
+        };
+
+        const streamProgress = () => {
+          if (eventSource) eventSource.close();
+          eventSource = new EventSource(`/api/junk/scan/${taskId.value}/stream`);
+          eventSource.onmessage = (e) => {
+            const d = JSON.parse(e.data);
+            if (d.progress_total > 0)
+              progressPercent.value = Math.floor(d.progress_current / d.progress_total * 100);
+            progressTitle.value = "正在扫描...";
+            progressText.value = `已扫描 ${d.progress_current} / ${d.progress_total} 个类别`;
+            if (d.status === "done") { eventSource.close(); loadResults(); }
+            else if (d.status === "error") { eventSource.close(); handleError(d.error || "扫描出错"); }
+          };
+          eventSource.onerror = () => { eventSource.close(); handleError("SSE 断连"); };
+        };
+
+        const loadResults = async () => {
+          progressPercent.value = 100;
+          progressTitle.value = "扫描完成";
+          progressText.value = "正在渲染结果...";
+          try {
+            const r = await fetch(`/api/junk/scan/${taskId.value}/result`);
+            const data = await safeJson(r);
+            if (!r.ok) throw new Error(data.detail || "获取结果失败");
+            data.categories.sort((a, b) => b.size_bytes - a.size_bytes);
+            data.categories.forEach(cat => {
+              cat.files.forEach(f => {
+                checkedFiles[f.path] = true;
+                f.name = f.path.split('\\').pop();
+              });
+              catSizes[cat.category_id] = cat.size_display;
+              // 默认折叠
+              expandedCats[cat.category_id] = false;
+            });
+            resultData.value = data;
+            scanning.value = false;
+            if (data.total_files > 0) {
+              ElMessage.success(`发现 ${data.total_files} 个垃圾文件，共 ${data.total_size_display}`);
+            } else {
+              ElMessage.info("系统很干净，未发现垃圾文件");
+            }
+          } catch (e) { handleError(e.message); }
+        };
+
+        const handleError = (msg) => {
+          scanning.value = false; errorMsg.value = msg;
+          progressTitle.value = "扫描中止";
+          progressText.value = `错误: ${msg}`;
+          ElMessage.error(msg);
+        };
+
+        // ---- 结果交互 ----
+        const toggleExpand = (catId) => { expandedCats[catId] = !expandedCats[catId]; };
+        const toggleDir = (catId, dirName) => {
+          const key = catId + '/' + dirName;
+          dirOpen[key] = !dirOpen[key];
+        };
+        // 点击文件行切换勾选
+        const toggleFile = (path) => {
+          checkedFiles[path] = !checkedFiles[path];
+        };
+        const setFile = (path, val) => {
+          checkedFiles[path] = val;
+        };
+
+        // 构建文件 → 目录树
+        const getCategoryTree = (cat) => {
+          const dirs = {};
+          cat.files.forEach(f => {
+            const parts = f.path.split('\\');
+            parts.pop(); // remove filename
+            const dir = parts.join('\\') || f.path;
+            if (!dirs[dir]) dirs[dir] = { name: dir, files: [] };
+            dirs[dir].files.push(f);
+          });
+          return Object.values(dirs).sort((a, b) => a.name.localeCompare(b.name));
+        };
+        const isCategoryFullyChecked = (cat) => cat.files && cat.files.length > 0 && cat.files.every(f => checkedFiles[f.path]);
+        const isCategoryIndeterminate = (cat) => {
+          if (!cat.files || cat.files.length === 0) return false;
+          const n = cat.files.filter(f => checkedFiles[f.path]).length;
+          return n > 0 && n < cat.files.length;
+        };
+        const toggleCategoryCheck = (cat) => {
+          const all = isCategoryFullyChecked(cat);
+          cat.files.forEach(f => { checkedFiles[f.path] = !all; });
+        };
+        const smartSelect = (mode) => {
+          if (!resultData.value) return;
+          resultData.value.categories.forEach(cat => {
+            cat.files.forEach(f => { checkedFiles[f.path] = mode === 'all'; });
+          });
+        };
+
+        const cleanSelected = async () => {
+          const files = Object.keys(checkedFiles).filter(k => checkedFiles[k]);
+          if (files.length === 0) return;
+          try {
+            await ElMessageBox.confirm(
+              `确定要清理这 ${files.length} 个垃圾文件吗？\n清理后无法恢复！`,
+              '清理确认',
+              { confirmButtonText: '确定清理', cancelButtonText: '取消', type: 'warning' }
+            );
+          } catch { return; }
+
+          try {
+            const r = await fetch('/api/junk/clean', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ files }),
+            });
+            const res = await safeJson(r);
+            if (!r.ok) throw new Error(res.detail || "清理请求失败");
+            if (res.errors.length > 0) {
+              ElMessage.warning(`清理了 ${res.deleted.length} 个文件，${res.errors.length} 个失败`);
+            } else {
+              ElMessage.success(`成功清理了 ${res.deleted.length} 个垃圾文件！`);
+            }
+
+            const deletedSet = new Set(res.deleted);
+            resultData.value.categories = resultData.value.categories.map(cat => {
+              cat.files = cat.files.filter(f => !deletedSet.has(f.path));
+              cat.file_count = cat.files.length;
+              cat.size_bytes = cat.files.reduce((s, f) => s + f.size_bytes, 0);
+              cat.size_display = formatSize(cat.size_bytes);
+              return cat;
+            }).filter(cat => cat.files.length > 0);
+
+            resultData.value.categories.forEach(cat => { catSizes[cat.category_id] = cat.size_display; });
+            res.deleted.forEach(f => delete checkedFiles[f]);
+
+            let totalFiles = 0, totalSize = 0;
+            resultData.value.categories.forEach(cat => { totalFiles += cat.file_count; totalSize += cat.size_bytes; });
+            resultData.value.total_files = totalFiles;
+            resultData.value.total_size_bytes = totalSize;
+            resultData.value.total_size_display = formatSize(totalSize);
+          } catch (e) { ElMessage.error(e.message); }
+        };
+
+        const clearResults = () => {
+          resultData.value = null;
+          errorMsg.value = "";
+          Object.keys(expandedCats).forEach(k => delete expandedCats[k]);
+          Object.keys(checkedFiles).forEach(k => delete checkedFiles[k]);
+          Object.keys(catSizes).forEach(k => delete catSizes[k]);
+        };
+
+        const formatSize = (b) => {
+          let w = b; const u = ["B","KB","MB","GB","TB"]; let i = 0;
+          while (w >= 1024 && i < u.length - 1) { w /= 1024; i++; }
+          return `${w.toFixed(1)} ${u[i]}`;
+        };
+
+        return {
+          categories, backendConnected, scanning, selectedCats, catSizes,
+          progressTitle, progressText, progressPercent, errorMsg,
+          taskId, resultData, expandedCats, dirOpen, checkedFiles,
+          selectedCount, totalCheckedFiles, allChecked,
+          toggleCategory, selectAll, deselectAll,
+          startScan, clearResults, toggleExpand, toggleDir,
+          toggleFile, setFile, getCategoryTree,
+          isCategoryFullyChecked, isCategoryIndeterminate, toggleCategoryCheck,
+          smartSelect, cleanSelected,
+        };
+      },
+    });
+
+    for (const [k, c] of Object.entries(ElementPlusIconsVue)) app.component(k, c);
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+</body>
+</html>
