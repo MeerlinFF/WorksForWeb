@@ -15,7 +15,6 @@
       --hr-primary-dark: #E55A2B;
       --hr-bg: #FFFFFF;
       --hr-text: #2C3E50;
-      --hr-text-secondary: #8B95A5;
       --hr-border: #EEF0F4;
       --green: #4CAF50;
       --green-light: #E8F5E9;
@@ -443,8 +442,9 @@
         <div class="panel-header">
           <span class="panel-title">清理内容</span>
           <div style="display:flex;gap:8px;">
-            <el-button size="small" text @click="selectAll">全选</el-button>
-            <el-button size="small" text @click="deselectAll">取消</el-button>
+            <el-button size="small" text @click="toggleAllCats">
+              {{ allCatsSelected ? '取消全选' : '全选' }}
+            </el-button>
           </div>
         </div>
         <div class="panel-body">
@@ -680,6 +680,11 @@
         };
         const selectAll = () => categories.value.forEach(c => selectedCats.add(c.id));
         const deselectAll = () => selectedCats.clear();
+        const allCatsSelected = computed(() => selectedCats.size >= categories.value.length);
+        const toggleAllCats = () => {
+          if (allCatsSelected.value) deselectAll();
+          else selectAll();
+        };
 
         const checkBackend = async () => {
           try { backendConnected.value = (await fetch("/api/health")).ok; }
@@ -874,7 +879,7 @@
           progressTitle, progressText, progressPercent, errorMsg,
           taskId, resultData, expandedCats, dirOpen, checkedFiles,
           selectedCount, totalCheckedFiles, allChecked,
-          toggleCategory, selectAll, deselectAll,
+          toggleCategory, selectAll, deselectAll, allCatsSelected, toggleAllCats,
           startScan, clearResults, toggleExpand, toggleDir,
           toggleFile, setFile, getCategoryTree,
           isCategoryFullyChecked, isCategoryIndeterminate, toggleCategoryCheck,
