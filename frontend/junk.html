@@ -397,6 +397,15 @@
       font-weight: 600 !important;
     }
 
+    .btn-browse:hover:not(:disabled) {
+      border-color: var(--hr-primary) !important;
+      color: var(--hr-primary) !important;
+      background: var(--hr-primary-light) !important;
+    }
+    .btn-browse:disabled {
+      opacity: .45; cursor: not-allowed;
+    }
+
     /* 空状态 */
     .empty-state {
       flex: 1;
@@ -472,9 +481,13 @@
               size="small"
               clearable
               style="flex:1;" />
-            <el-button size="small" @click="browseFolder" :disabled="!backendConnected || !supportsPicker">
+            <button
+              class="btn-browse"
+              @click="browseFolder"
+              :disabled="!backendConnected"
+              style="flex-shrink:0;padding:0 16px;height:32px;border:1px solid var(--hr-border);border-radius:6px;background:#fff;color:var(--hr-text);cursor:pointer;font-size:13px;white-space:nowrap;">
               📂 浏览
-            </el-button>
+            </button>
           </div>
         </div>
         <div style="padding:16px 24px;border-top:1px solid var(--hr-border);">
