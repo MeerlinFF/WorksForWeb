@@ -465,15 +465,23 @@
         </div>
         <div style="padding:10px 24px;border-top:1px solid var(--hr-border);">
           <div style="font-size:12px;color:var(--hr-text-secondary);margin-bottom:6px;">自定义扫描目录（可选）</div>
-          <el-input
-            v-model="customDir"
-            placeholder="输入文件夹路径，如 C:\Users\..."
-            size="small"
-            clearable>
-            <template #prefix>
-              <span style="font-size:13px;">📁</span>
-            </template>
-          </el-input>
+          <div style="display:flex;gap:8px;">
+            <el-input
+              v-model="customDir"
+              placeholder="输入或选择文件夹路径"
+              size="small"
+              clearable
+              style="flex:1;" />
+            <input
+              type="file"
+              ref="folderInput"
+              webkitdirectory
+              hidden
+              @change="onFolderPicked" />
+            <el-button size="small" @click="browseFolder" :disabled="!backendConnected">
+              📂 浏览
+            </el-button>
+          </div>
         </div>
         <div style="padding:16px 24px;border-top:1px solid var(--hr-border);">
           <el-button type="primary" class="btn-scan"
@@ -659,6 +667,7 @@
         const taskId = ref("");
         const resultData = ref(null);
         const customDir = ref("");
+        const folderInput = ref(null);
         const expandedCats = reactive({});
         const dirOpen = reactive({});
         const checkedFiles = reactive({});
@@ -715,6 +724,29 @@
         const safeJson = async (r) => {
           try { return await r.json(); }
           catch (_) { return { detail: `服务器错误 (${r.status})` }; }
+        };
+
+        // ---- 浏览文件夹（打开 Windows 原生资源管理器）----
+        const browseFolder = () => {
+          if (folderInput.value) folderInput.value.click();
+        };
+        const onFolderPicked = (e) => {
+          const files = e.target.files;
+          if (!files || files.length === 0) return;
+          // 从 webkitRelativePath 提取顶层文件夹名作为提示
+          const relPath = files[0].webkitRelativePath || "";
+          const topDir = relPath.split("/")[0] || "";
+          // 尝试从 input.value 中提取更多路径信息
+          const raw = e.target.value || "";
+          // Chrome 中 webkitdirectory 的 value 形如 C:\fakepath\文件夹名
+          const fakeMatch = raw.match(/fakepath[\\/](.+)/i);
+          if (fakeMatch && topDir) {
+            customDir.value = `（已选择: ${topDir}，共 ${files.length} 个文件 — 请手动输入完整路径）`;
+          } else if (topDir) {
+            customDir.value = `（已选择: ${topDir} — 请手动输入完整路径）`;
+          }
+          // 重置以允许重复选择同一文件夹
+          e.target.value = "";
         };
 
         // ---- 扫描 ----
@@ -896,7 +928,7 @@
           startScan, clearResults, toggleExpand, toggleDir,
           toggleFile, setFile, getCategoryTree,
           isCategoryFullyChecked, isCategoryIndeterminate, toggleCategoryCheck,
-          smartSelect, cleanSelected,
+          smartSelect, cleanSelected, browseFolder, onFolderPicked, folderInput,
         };
       },
     });
