@@ -463,10 +463,22 @@
             <div class="card-row2">{{ cat.desc }}</div>
           </div>
         </div>
+        <div style="padding:10px 24px;border-top:1px solid var(--hr-border);">
+          <div style="font-size:12px;color:var(--hr-text-secondary);margin-bottom:6px;">自定义扫描目录（可选）</div>
+          <el-input
+            v-model="customDir"
+            placeholder="输入文件夹路径，如 C:\Users\..."
+            size="small"
+            clearable>
+            <template #prefix>
+              <span style="font-size:13px;">📁</span>
+            </template>
+          </el-input>
+        </div>
         <div style="padding:16px 24px;border-top:1px solid var(--hr-border);">
           <el-button type="primary" class="btn-scan"
             :loading="scanning"
-            :disabled="selectedCount === 0 || !backendConnected"
+            :disabled="(selectedCount === 0 && !customDir) || !backendConnected"
             @click="startScan"
             style="width:100%;">
             {{ scanning ? '正在扫描...' : '开始扫描' }}
@@ -646,6 +658,7 @@
         const errorMsg = ref("");
         const taskId = ref("");
         const resultData = ref(null);
+        const customDir = ref("");
         const expandedCats = reactive({});
         const dirOpen = reactive({});
         const checkedFiles = reactive({});
@@ -714,7 +727,7 @@
             const r = await fetch("/api/junk/scan", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ categories: [...selectedCats] }),
+              body: JSON.stringify({ categories: [...selectedCats], custom_dir: customDir.value }),
             });
             const data = await safeJson(r);
             if (!r.ok) throw new Error(data.detail || "请求失败");
@@ -877,7 +890,7 @@
         return {
           categories, backendConnected, scanning, selectedCats, catSizes,
           progressTitle, progressText, progressPercent, errorMsg,
-          taskId, resultData, expandedCats, dirOpen, checkedFiles,
+          taskId, resultData, expandedCats, dirOpen, checkedFiles, customDir,
           selectedCount, totalCheckedFiles, allChecked,
           toggleCategory, selectAll, deselectAll, allCatsSelected, toggleAllCats,
           startScan, clearResults, toggleExpand, toggleDir,

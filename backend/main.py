@@ -199,6 +199,7 @@ junk_tasks: dict[str, dict] = {}
 
 class JunkScanRequest(BaseModel):
     categories: list[str] = []
+    custom_dir: str = ""
 
 
 class JunkCleanRequest(BaseModel):
@@ -213,6 +214,7 @@ register_scan_api(
     request_model=JunkScanRequest,
     build_kwargs=lambda req: dict(
         selected_categories=req.categories if req.categories else None,
+        custom_dir=req.custom_dir.strip() if req.custom_dir else "",
     ),
 )
 

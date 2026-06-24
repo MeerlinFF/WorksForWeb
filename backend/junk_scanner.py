@@ -232,6 +232,7 @@ def _collect_files(path: str, patterns: list[str], max_depth: int, collected: li
 def scan_junk(
     progress_callback: Optional[Callable[[str, int, int], None]] = None,
     selected_categories: Optional[list[str]] = None,
+    custom_dir: str = "",
 ) -> dict:
     """
     扫描垃圾文件，返回分类结果。
@@ -239,10 +240,24 @@ def scan_junk(
     参数:
         progress_callback: 进度回调 (phase, current, total)
         selected_categories: 要扫描的类别 ID 列表，None 表示全部
+        custom_dir:         用户自定义扫描目录，非空时额外扫描该目录下所有文件
     """
-    categories = JUNK_CATEGORIES
+    categories = list(JUNK_CATEGORIES)
     if selected_categories:
         categories = [c for c in JUNK_CATEGORIES if c["id"] in selected_categories]
+
+    # 自定义目录：构造一个虚拟类别
+    if custom_dir and os.path.isdir(custom_dir):
+        categories.append({
+            "id": "custom_dir",
+            "name": f"自定义目录: {custom_dir}",
+            "description": f"扫描指定目录下的所有文件: {custom_dir}",
+            "paths": [custom_dir],
+            "patterns": ["*.*"],
+            "max_depth": 0,
+            "min_size": 0,
+            "icon": "📁",
+        })
 
     total_categories = len(categories)
     results: list[dict] = []
