@@ -39,7 +39,7 @@ def register_scan_api(
 
     # ---- 启动扫描 ----
     @app.post(f"/api/{prefix}/scan")
-    async def _start_scan(req: request_model):  # noqa: F811
+    async def _start_scan(req: request_model):  # type: ignore[valid-type]  # noqa: F811
         task_id = str(uuid.uuid4())[:8]
         task_store[task_id] = {
             "status": "pending",
