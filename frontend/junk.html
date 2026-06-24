@@ -472,13 +472,7 @@
               size="small"
               clearable
               style="flex:1;" />
-            <input
-              type="file"
-              ref="folderInput"
-              webkitdirectory
-              style="display:none"
-              @change="onFolderPicked" />
-            <el-button size="small" @click="browseFolder" :disabled="!backendConnected">
+            <el-button size="small" @click="browseFolder" :disabled="!backendConnected || !supportsPicker">
               📂 浏览
             </el-button>
           </div>
@@ -667,7 +661,7 @@
         const taskId = ref("");
         const resultData = ref(null);
         const customDir = ref("");
-        const folderInput = ref(null);
+        const supportsPicker = ref(typeof window.showDirectoryPicker === "function");
         const expandedCats = reactive({});
         const dirOpen = reactive({});
         const checkedFiles = reactive({});
@@ -727,33 +721,25 @@
         };
 
         // ---- 浏览文件夹（打开 Windows 原生资源管理器）----
-        const browseFolder = () => {
-          const el = folderInput.value;
-          if (!el) { ElMessage.error("文件选择器未就绪，请刷新页面"); return; }
-          el.click();
-        };
-        const onFolderPicked = (e) => {
-          const files = e.target.files;
-          if (!files || files.length === 0) return;
-          // 从 webkitRelativePath 提取顶层文件夹名作为提示
-          const relPath = files[0].webkitRelativePath || "";
-          const topDir = relPath.split("/")[0] || "";
-          // 尝试从 input.value 中提取更多路径信息
-          const raw = e.target.value || "";
-          // Chrome 中 webkitdirectory 的 value 形如 C:\fakepath\文件夹名
-          const fakeMatch = raw.match(/fakepath[\\/](.+)/i);
-          if (fakeMatch && topDir) {
-            customDir.value = `（已选择: ${topDir}，共 ${files.length} 个文件 — 请手动输入完整路径）`;
-          } else if (topDir) {
-            customDir.value = `（已选择: ${topDir} — 请手动输入完整路径）`;
+        const browseFolder = async () => {
+          if (!supportsPicker.value) {
+            ElMessage.warning("当前浏览器不支持原生文件夹选择，请手动输入路径");
+            return;
           }
-          // 重置以允许重复选择同一文件夹
-          e.target.value = "";
+          try {
+            const handle = await window.showDirectoryPicker();
+            customDir.value = `（已选择: ${handle.name} — 请手动输入完整路径）`;
+          } catch (e) {
+            if (e.name !== "AbortError") {
+              ElMessage.error("打开文件夹选择器失败: " + e.message);
+            }
+          }
         };
 
         // ---- 扫描 ----
         const startScan = async () => {
-          if (scanning.value || !backendConnected.value || selectedCount.value === 0) return;
+          if (scanning.value || !backendConnected.value) return;
+          if (selectedCount.value === 0 && !customDir.value.trim()) return;
           clearResults();
           scanning.value = true;
           progressTitle.value = "准备扫描"; progressText.value = "正在连接..."; progressPercent.value = 0;
@@ -924,13 +910,13 @@
         return {
           categories, backendConnected, scanning, selectedCats, catSizes,
           progressTitle, progressText, progressPercent, errorMsg,
-          taskId, resultData, expandedCats, dirOpen, checkedFiles, customDir,
+          taskId, resultData, expandedCats, dirOpen, checkedFiles, customDir, supportsPicker,
           selectedCount, totalCheckedFiles, allChecked,
           toggleCategory, selectAll, deselectAll, allCatsSelected, toggleAllCats,
           startScan, clearResults, toggleExpand, toggleDir,
           toggleFile, setFile, getCategoryTree,
           isCategoryFullyChecked, isCategoryIndeterminate, toggleCategoryCheck,
-          smartSelect, cleanSelected, browseFolder, onFolderPicked, folderInput,
+          smartSelect, cleanSelected, browseFolder,
         };
       },
     });
