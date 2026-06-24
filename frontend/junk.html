@@ -476,7 +476,7 @@
               type="file"
               ref="folderInput"
               webkitdirectory
-              hidden
+              style="display:none"
               @change="onFolderPicked" />
             <el-button size="small" @click="browseFolder" :disabled="!backendConnected">
               📂 浏览
@@ -728,7 +728,9 @@
 
         // ---- 浏览文件夹（打开 Windows 原生资源管理器）----
         const browseFolder = () => {
-          if (folderInput.value) folderInput.value.click();
+          const el = folderInput.value;
+          if (!el) { ElMessage.error("文件选择器未就绪，请刷新页面"); return; }
+          el.click();
         };
         const onFolderPicked = (e) => {
           const files = e.target.files;
